@@ -1,6 +1,6 @@
 pipeline {
     agent { 
-        label 'main'
+        label 'jenkins-node'
          }
    
    environment {
@@ -25,38 +25,14 @@ pipeline {
                                 defaultValue: '001', 
                                 name: 'ImageTAG', 
                                 trim: true
-                            ),
-
-                            string(name: 'WARNTIME',
-                             defaultValue: '2',
-                            description: '''Warning time (in minutes) before starting upgrade'''),
-
-                             
-                         
-                          string(
-                                defaultValue: 'develop',
-                                name: 'Please_leave_this_section_as_it_is',
-                                trim: true
-                            ),
+                            )
                         ])
                     ])
                 }
             }
         }
 
-     
 
-     //////////////////////////////////
-       stage('warning') {
-      steps {
-        script {
-            notifyUpgrade(currentBuild.currentResult, "WARNING")
-            sleep(time:env.WARNTIME, unit:"MINUTES")
-        }
-      }
-    }
-
-        
 
 
         stage('clean') {
@@ -66,9 +42,7 @@ pipeline {
 
             steps {
                sh '''
-	       rm -rf webapp.war
-               rm -rf webapp/target/
-	      ls -l webapp
+               rm -rf webapp/target/webapp.war || true
               mvn clean
                '''
             }
@@ -118,8 +92,6 @@ stage('package') {
             steps {
                sh '''
          mvn package
-	 ls -l webapp/
-	 ls -l webapp/target/
                '''
             }
         }
@@ -207,9 +179,7 @@ stage('build ') {
     stage('Deploy with docker ') {
             steps {
                sh '''
-               docker rm -f $(docker ps -aq) || true
-               docker run -d --name deploy -p 6089:8080 devopseasylearning2021/eric:$ImageTAG 
-               curl ifconfig.co 
+               docker run -d -p 8089:8080 devopseasylearning2021/eric:$ImageTAG 
                 '''
             }
         }
@@ -217,57 +187,4 @@ stage('build ') {
 
 
     }
-
-
-
- 
- post {
-    always {
-      script {
-        notifyUpgrade(currentBuild.currentResult, "POST")
-      }
-    }
-    
-  }
-
-
-
-
-}
-
-
-
-
-
-
-
-def notifyUpgrade(String buildResult, String whereAt) {
-  if (Please_leave_this_section_as_it_is == 'origin/develop') {
-    channel = 'development-alerts'
-  } else {
-    channel = 'development-alerts'
-  }
-  if (buildResult == "SUCCESS") {
-    switch(whereAt) {
-      case 'WARNING':
-        slackSend(channel: channel,
-                color: "#439FE0",
-                message: "MONEY: Upgrade starting in ${env.WARNTIME} minutes @ ${env.BUILD_URL}  Application MONEY")
-        break
-    case 'STARTING':
-      slackSend(channel: channel,
-                color: "good",
-                message: "DEV-MONEY: Starting upgrade @ ${env.BUILD_URL} Application MONEY")
-      break
-    default:
-        slackSend(channel: channel,
-                color: "good",
-                message: "DEV-MONEY: Upgrade completed successfully @ ${env.BUILD_URL}  Application MONEY")
-        break
-    }
-  } else {
-    slackSend(channel: channel,
-              color: "danger",
-              message: "DEV-MONEY: Upgrade was not successful. Please investigate it immediately.  @ ${env.BUILD_URL}  Application MONEY")
-  }
 }
