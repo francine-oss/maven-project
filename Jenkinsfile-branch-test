@@ -1,9 +1,12 @@
 pipeline {
     agent { 
-        label 'main'
+        label 'branch'
          }
    
-  
+   environment {
+		DOCKERHUB_CREDENTIALS=credentials('dockerhub')
+	}
+
     options { buildDiscarder(logRotator(artifactDaysToKeepStr: '',
      artifactNumToKeepStr: '', daysToKeepStr: '3', numToKeepStr: '5'))
       disableConcurrentBuilds() }
@@ -11,8 +14,45 @@ pipeline {
 
     stages {
         
-    
-    
+       stage('Setup parameters') {
+            steps {
+                script { 
+                    properties([
+                        parameters([
+                           string(
+                                defaultValue: 'develop', 
+                                name: 'BranchName', 
+                                trim: true
+                            ),
+                            
+                            string(
+                                defaultValue: '001', 
+                                name: 'ImageTAG', 
+                                trim: true
+                            )
+                        ])
+                    ])
+                }
+            }
+        }
+
+
+
+
+ stage(' cloning') {
+   
+
+            steps {
+               sh '''
+               rm -rf ./*
+	       git clone -b $BranchName https://github.com/devopseasylearning/maven-project.git
+           cp -r maven-project/* . 
+           rm -rf maven-project/
+           ls -l
+               '''
+            }
+        }
+
         stage('clean') {
             agent {
                  docker { image 'maven:3.8.5-openjdk-8-slim' }
@@ -127,29 +167,66 @@ stage('build ') {
 
             steps {
                sh '''
-           docker build -t devopseasylearning2021/eric:${BUILD_NUMBER} .
+           docker build -t devopseasylearning2021/eric:$ImageTAG .
                '''
             }
         }
        
 
 
-    }
+
+
+
+      stage('Docker Login') {
+
+			steps {
+				sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+			}
+		}
+
+           
             
+
+     stage('Docker push ') {
+            steps {
+               sh '''
+              docker push devopseasylearning2021/eric:$ImageTAG 
+                '''
+            }
+        }
+
+    
+
+
+    stage('Deploy with docker ') {
+            steps {
+               sh '''
+               docker rm -f $(docker ps -aq) || true
+               docker run -d --name $BranchName -p 4089:8080 devopseasylearning2021/eric:$ImageTAG 
+               curl ifconfig.co 
+                '''
+            }
+        }
+
+
+
+    }
+
+
 
    post {
    
    success {
-      slackSend (channel: '#development-alerts', color: 'good', message: "SUCCESSFUL:  Branch name  <<${env.BRANCH_NAME}>>  Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+      slackSend (channel: '#development-alerts', color: 'good', message: "SUCCESSFUL: Application EKTSS $BranchName Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
     }
 
  
     unstable {
-      slackSend (channel: '#development-alerts', color: 'warning', message: "UNSTABLE:  Branch name  <<${env.BRANCH_NAME}>>  Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+      slackSend (channel: '#development-alerts', color: 'warning', message: "UNSTABLE: Application EKTSS $BranchName Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
     }
 
     failure {
-      slackSend (channel: '#development-alerts', color: '#FF0000', message: "FAILURE:  Branch name  <<${env.BRANCH_NAME}>> Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
+      slackSend (channel: '#development-alerts', color: '#FF0000', message: "FAILURE: Application EKTSS $BranchNameJob '${env.JOB_NAME} [${env.BUILD_NUMBER}]' (${env.BUILD_URL})")
     }
    
     cleanup {
@@ -158,13 +235,6 @@ stage('build ') {
 }
 
 
-    
 
 
-
-    }
-
-
-
-
-
+}

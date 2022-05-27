@@ -1,6 +1,6 @@
 pipeline {
     agent { 
-        label 'preproduction'
+        label 'production'
          }
    
    environment {
@@ -131,31 +131,31 @@ curl ifconfig.co
 
 def notifyUpgrade(String buildResult, String whereAt) {
   if (Please_leave_this_section_as_it_is == 'origin/develop') {
-    channel = 'pre-production-alerts'
+    channel = 'production-alerts'
   } else {
-    channel = 'pre-production-alerts'
+    channel = 'production-alerts'
   }
   if (buildResult == "SUCCESS") {
     switch(whereAt) {
       case 'WARNING':
         slackSend(channel: channel,
                 color: "#439FE0",
-                message: "PREPROD-MONEY: Upgrade starting in ${env.WARNTIME} minutes @ ${env.BUILD_URL}  Application MONEY")
+                message: "PRODUCTION-MONEY: Upgrade starting in ${env.WARNTIME} minutes @ ${env.BUILD_URL}  Application MONEY")
         break
     case 'STARTING':
       slackSend(channel: channel,
                 color: "good",
-                message: "PREPROD-MONEY: Starting upgrade @ ${env.BUILD_URL} Application MONEY")
+                message: "PRODUCTION-MONEY: Starting upgrade @ ${env.BUILD_URL} Application MONEY")
       break
     default:
         slackSend(channel: channel,
                 color: "good",
-                message: "PREPROD-MONEY: Upgrade completed successfully @ ${env.BUILD_URL}  Application MONEY")
+                message: "PRODUCTION-MONEY: Upgrade completed successfully @ ${env.BUILD_URL}  Application MONEY")
         break
     }
   } else {
     slackSend(channel: channel,
               color: "danger",
-              message: "PREPROD-MONEY: Upgrade was not successful. Please investigate it immediately.  @ ${env.BUILD_URL}  Application MONEY")
+              message: "PRODUCTION-MONEY: Upgrade was not successful. Please investigate it immediately.  @ ${env.BUILD_URL}  Application MONEY")
   }
 }
